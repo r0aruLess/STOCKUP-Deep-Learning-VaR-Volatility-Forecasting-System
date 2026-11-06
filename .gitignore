@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+# data & model artifacts are reproducible - don't commit them
+data/raw/*
+data/processed/*
+data/nab/*
+artifacts/*
+reports/*.csv
+reports/figures/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/nab/.gitkeep
+!artifacts/.gitkeep
+!reports/figures/.gitkeep
+.DS_Store
+# Word documents & local doc update script — keep local
+*.docx
+scripts/update_docx.py
