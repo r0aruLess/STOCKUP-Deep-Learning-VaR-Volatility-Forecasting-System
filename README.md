@@ -159,18 +159,31 @@ The platform evaluates 5 distinct risk forecasting methodologies:
 
 Given daily closing prices $P_t$, high prices $H_t$, and low prices $L_t$:
 
-* **Continuously Compounded Log Return:**
-  $$R_t = \ln\left(\frac{P_t}{P_{t-1}}\right)$$
+#### Continuously Compounded Log Return
 
-* **Rolling 21-Day Historical Volatility:**
-  $$\sigma_{21, t} = \sqrt{\frac{1}{20} \sum_{i=0}^{20} \left(R_{t-i} - \bar{R}_t\right)^2}, \quad \text{where } \bar{R}_t = \frac{1}{21}\sum_{i=0}^{20} R_{t-i}$$
+$$
+R_t = \ln\left(\frac{P_t}{P_{t-1}}\right)
+$$
 
-* **Intraday Normalized High-Low Range:**
-  $$\text{Range}_t = \frac{H_t - L_t}{P_t}$$
+#### Rolling 21-Day Historical Volatility
 
-* **Target Formulation ($H=1$ Day Ahead):**
-  $$y_t = \left|R_{t+1}\right|$$
-  Under conditionally zero-mean returns, the conditional expectation $\mathbb{E}[|R_{t+1}| \mid \mathcal{F}_t]$ serves as a proxy for conditional standard deviation $\sigma_{t+1}$.
+$$
+\sigma_{21, t} = \sqrt{\frac{1}{20} \sum_{i=0}^{20} \left(R_{t-i} - \bar{R}_t\right)^2}, \quad \text{where } \bar{R}_t = \frac{1}{21}\sum_{i=0}^{20} R_{t-i}
+$$
+
+#### Intraday Normalized High-Low Range
+
+$$
+\text{Range}_t = \frac{H_t - L_t}{P_t}
+$$
+
+#### Target Formulation ($H=1$ Day Ahead)
+
+$$
+y_t = |R_{t+1}|
+$$
+
+Under conditionally zero-mean returns, the conditional expectation $\mathbb{E}[|R_{t+1}| \mid \mathcal{F}_t]$ serves as a proxy for conditional standard deviation $\sigma_{t+1}$.
 
 ---
 
@@ -178,19 +191,37 @@ Given daily closing prices $P_t$, high prices $H_t$, and low prices $L_t$:
 
 For portfolio value $V$, confidence level $\alpha \in (0, 1)$ (e.g., $\alpha = 0.99$), zero drift assumption $\mu = 0$, and forecasted volatility $\hat{\sigma}_{t+1}$:
 
-* **Parametric VaR Threshold (Return Space):**
-  $$\text{VaR}_{\alpha, t+1}^{\text{ret}} = \mu - z_\alpha \hat{\sigma}_{t+1}$$
+#### Parametric VaR Threshold (Return Space)
 
-* **Parametric VaR Monetary Loss:**
-  $$\text{VaR}_{\alpha, t+1}^{\$} = V \cdot \left(1 - \exp\left(\mu - z_\alpha \hat{\sigma}_{t+1}\right)\right)$$
+$$
+\text{VaR}_{\alpha, t+1}^{\text{ret}} = \mu - z_\alpha \hat{\sigma}_{t+1}
+$$
 
-* **Dynamic VaR Price Floor:**
-  $$\text{Floor}_{t+1} = P_t \cdot \exp\left(\mu - z_\alpha \hat{\sigma}_{t+1}\right)$$
+#### Parametric VaR Monetary Loss
 
-Where quantile multiplier $z_\alpha$ is defined as:
-* **Normal Distribution ($\mathcal{N}(0, 1)$):** $z_\alpha = \Phi^{-1}(\alpha)$
+$$
+\text{VaR}_{\alpha, t+1}^{\text{loss}} = V \cdot \left(1 - \exp\left(\mu - z_\alpha \hat{\sigma}_{t+1}\right)\right)
+$$
+
+#### Dynamic VaR Price Floor
+
+$$
+\text{Floor}_{t+1} = P_t \cdot \exp\left(\mu - z_\alpha \hat{\sigma}_{t+1}\right)
+$$
+
+Where the quantile multiplier $z_\alpha$ is defined as:
+
+* **Normal Distribution ($\mathcal{N}(0, 1)$):**
+
+$$
+z_\alpha = \Phi^{-1}(\alpha)
+$$
+
 * **Student's $t$-Distribution with $\nu$ Degrees of Freedom ($t_\nu$ rescaled to unit variance):**
-  $$z_\alpha = t_\nu^{-1}(\alpha) \cdot \sqrt{\frac{\nu - 2}{\nu}}$$
+
+$$
+z_\alpha = t_\nu^{-1}(\alpha) \cdot \sqrt{\frac{\nu - 2}{\nu}}
+$$
 
 ---
 
@@ -198,63 +229,111 @@ Where quantile multiplier $z_\alpha$ is defined as:
 
 To adjust for empirical tail fatness:
 
-1. **Standardized Residuals on Out-of-Sample Validation Set ($\mathcal{D}_{\text{val}}$):**
-   $$e_t = \frac{R_t}{\hat{\sigma}_t}, \quad \forall t \in \mathcal{D}_{\text{val}}$$
+#### Step 1: Standardized Residuals on Out-of-Sample Validation Set ($\mathcal{D}_{\text{val}}$)
 
-2. **Empirical Left-Tail Quantile ($1 - \alpha$ level):**
-   $$q_{1-\alpha} = \text{Quantile}_{1-\alpha}\left(\{e_t\}_{t \in \mathcal{D}_{\text{val}}}\right)$$
+$$
+e_t = \frac{R_t}{\hat{\sigma}_t}, \quad \forall t \in \mathcal{D}_{\text{val}}
+$$
 
-3. **Calibrated Threshold:**
-   $$\text{Threshold}_{t+1}^{\text{calibrated}} = \hat{\sigma}_{t+1} \cdot q_{1-\alpha}$$
+#### Step 2: Empirical Left-Tail Quantile ($1 - \alpha$ level)
+
+$$
+q_{1-\alpha} = \text{Quantile}_{1-\alpha}\left(\{e_t\}_{t \in \mathcal{D}_{\text{val}}}\right)
+$$
+
+#### Step 3: Calibrated Risk Threshold
+
+$$
+\text{Threshold}_{t+1}^{\text{calibrated}} = \hat{\sigma}_{t+1} \cdot q_{1-\alpha}
+$$
 
 A **VaR breach** on trading day $t+1$ occurs if:
-$$I_{t+1} = \mathbb{I}\left(R_{t+1} < \text{Threshold}_{t+1}^{\text{calibrated}}\right) = 1$$
+
+$$
+I_{t+1} = \mathbb{I}\left(R_{t+1} < \text{Threshold}_{t+1}^{\text{calibrated}}\right) = 1
+$$
 
 ---
 
 ### 4. Classical Benchmarks
 
-* **EWMA (RiskMetrics, $\lambda = 0.94$):**
-  $$\sigma_t^2 = \lambda \sigma_{t-1}^2 + (1 - \lambda) R_{t-1}^2$$
+#### EWMA (RiskMetrics, $\lambda = 0.94$)
 
-* **Rolling Standard Deviation ($W=21$):**
-  $$\sigma_t = \sqrt{\frac{1}{W-1} \sum_{i=1}^W \left(R_{t-i} - \bar{R}\right)^2}$$
+$$
+\sigma_t^2 = \lambda \sigma_{t-1}^2 + (1 - \lambda) R_{t-1}^2
+$$
 
-* **Historical Simulation:**
-  $$\text{VaR}_{\alpha, t} = - \text{Quantile}_{1-\alpha}\left(\{R_{t-i}\}_{i=1}^{250}\right)$$
+#### Rolling Standard Deviation ($W=21$)
+
+$$
+\sigma_t = \sqrt{\frac{1}{W-1} \sum_{i=1}^W \left(R_{t-i} - \bar{R}\right)^2}
+$$
+
+#### Historical Simulation (250-Day Trailing Empirical Quantile)
+
+$$
+\text{VaR}_{\alpha, t} = - \text{Quantile}_{1-\alpha}\left(\{R_{t-i}\}_{i=1}^{250}\right)
+$$
 
 ---
 
 ### 5. Statistical Backtesting
 
 #### A. Kupiec Proportion of Failures (POF) Test
+
 Tests whether empirical breach probability matches nominal coverage $p_0 = 1 - \alpha$:
-$$H_0: p = p_0 \quad \text{vs.} \quad H_1: p \neq p_0$$
+
+$$
+H_0: p = p_0 \quad \text{vs.} \quad H_1: p \neq p_0
+$$
 
 Given $N$ test days, observed breaches $x = \sum_{t=1}^N I_t$, and sample rate $\hat{p} = \frac{x}{N}$:
-$$\text{LR}_{\text{POF}} = -2 \ln \left[ \frac{(1 - p_0)^{N - x} \, p_0^x}{(1 - \hat{p})^{N - x} \, \hat{p}^x} \right] \sim \chi^2(1)$$
+
+$$
+\text{LR}_{\text{POF}} = -2 \ln \left[ \frac{(1 - p_0)^{N - x} \, p_0^x}{(1 - \hat{p})^{N - x} \, \hat{p}^x} \right] \sim \chi^2(1)
+$$
 
 If $p\text{-value} = 1 - F_{\chi^2(1)}(\text{LR}_{\text{POF}}) < 0.05$, the model is rejected as mis-calibrated.
 
 #### B. Christoffersen Independence Test
-Evaluates whether breaches occur independently without clustering using a two-state Markov chain transition matrix $\Pi = \begin{pmatrix} \pi_{00} & \pi_{01} \\ \pi_{10} & \pi_{11} \end{pmatrix}$:
-$$\text{LR}_{\text{ind}} = -2 \ln \left[ \frac{\pi_0^{n_{00} + n_{10}} (1 - \pi_0)^{n_{01} + n_{11}}}{\hat{\pi}_{01}^{n_{01}} (1 - \hat{\pi}_{01})^{n_{00}} \hat{\pi}_{11}^{n_{11}} (1 - \hat{\pi}_{11})^{n_{10}}} \right] \sim \chi^2(1)$$
+
+Evaluates whether breaches occur independently without clustering using the transition likelihood ratio:
+
+$$
+\text{LR}_{\text{ind}} = -2 \ln \left[ \frac{\pi_0^{n_{00} + n_{10}} (1 - \pi_0)^{n_{01} + n_{11}}}{\hat{\pi}_{01}^{n_{01}} (1 - \hat{\pi}_{01})^{n_{00}} \hat{\pi}_{11}^{n_{11}} (1 - \hat{\pi}_{11})^{n_{10}}} \right] \sim \chi^2(1)
+$$
+
+Where $n_{ij}$ denotes the observed count of state transitions from state $i$ to state $j$ ($0 = \text{no breach}$, $1 = \text{breach}$).
 
 ---
 
 ### 6. Security Defenses & Fail-Safe Mechanism
 
-* **Rule 1 — Hard Limit Check (Large Price Dislocations):**
-  $$\text{Flag}_{\text{hard\_limit}, t} = \mathbb{I}\left(|R_t| > \gamma_{\text{max}}\right)$$
-  When triggered, the system replaces $P_t \leftarrow P_{t-1}$ (zero-order hold repair).
+#### Rule 1: Hard Limit Check (Large Price Dislocations)
 
-* **Rule 2 — Volatility Collapse Check (Stealth Calm-Injection):**
-  $$\text{RMS}_{k, t} = \sqrt{\frac{1}{k}\sum_{i=0}^{k-1} R_{t-i}^2}$$
-  $$\text{Flag}_{\text{collapse}, t} = \mathbb{I}\left(\text{RMS}_{k, t} < \beta \cdot \text{Median}\left(\{\sigma_{21, \tau}\}_{\tau = t - k - 252}^{t - k}\right)\right)$$
+$$
+\text{Flag}_{\text{hard\_limit}, t} = \mathbb{I}\left(|R_t| > \gamma_{\text{max}}\right)
+$$
 
-* **Fail-Safe Volatility Floor:**
-  If an alert is active on day $t$ or within the preceding $H_{\text{hold}}$ days:
-  $$\hat{\sigma}_t^{\text{secure}} = \max\left(\hat{\sigma}_t, \;\; \max_{i \in [\text{lag}, \, \text{lag} + W_{\text{ref}}]} \hat{\sigma}_{t-i}\right)$$
+When triggered, the system replaces $P_t \leftarrow P_{t-1}$ (zero-order hold carry-forward repair).
+
+#### Rule 2: Volatility Collapse Check (Stealth Calm-Injection)
+
+$$
+\text{RMS}_{k, t} = \sqrt{\frac{1}{k}\sum_{i=0}^{k-1} R_{t-i}^2}
+$$
+
+$$
+\text{Flag}_{\text{collapse}, t} = \mathbb{I}\left(\text{RMS}_{k, t} < \beta \cdot \text{Median}\left(\{\sigma_{21, \tau}\}_{\tau = t - k - 252}^{t - k}\right)\right)
+$$
+
+#### Fail-Safe Volatility Floor
+
+If an alert is active on day $t$ or within the preceding $H_{\text{hold}}$ days:
+
+$$
+\hat{\sigma}_t^{\text{secure}} = \max\left(\hat{\sigma}_t, \;\; \max_{i \in [\text{lag}, \, \text{lag} + W_{\text{ref}}]} \hat{\sigma}_{t-i}\right)
+$$
 
 ---
 
