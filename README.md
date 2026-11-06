@@ -1,159 +1,116 @@
-# STOCKUP-Deep-Learning-VaR-Volatility-Forecasting-System
+# 🛡️ DeepVaR Sentinel
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-orange?logo=pytorch)
 ![Tests](https://img.shields.io/badge/Tests-32%20passed-brightgreen?logo=pytest)
-![Assets](https://img.shields.io/badge/Assets-20%20real--world-purple)
+![Coverage](https://img.shields.io/badge/Coverage-Multi--Asset-purple)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-> **M.Tech Research Project** — Deep learning for financial risk estimation, tested on 20 real-world assets, with built-in protection against data-feed attacks.
+> **DeepVaR Sentinel** is a modular deep-learning framework for financial volatility forecasting and Value-at-Risk (VaR) estimation, engineered with integrated data-integrity validation and adversarial defenses.
 
 ---
 
-## What is this?
+## 🤔 What is this?
 
-Every bank and trading firm needs to answer one question every single day:
+Every bank and financial trading firm needs to answer one question every day:
 
-> *"How much money could we lose tomorrow — in the worst case?"*
+> *"How much money could we lose tomorrow in a worst-case scenario?"*
 
-That number is called **Value-at-Risk (VaR)**. For example, if a bank says **"Our 1-day 99% VaR is \$5 million"**, it means: *"We are 99% confident we will not lose more than \$5 million tomorrow."*
+That number is called **Value-at-Risk (VaR)**. For example, if a portfolio says **"Our 1-day 99% VaR is \$50,000"**, it means: *"We are 99% confident our portfolio will not lose more than \$50,000 tomorrow."*
 
-**This project builds an AI system that:**
-1. Looks at the last 60 days of market prices for a stock, crypto, or index
-2. Uses an **LSTM neural network** to predict how volatile (risky) tomorrow will be
-3. Converts that volatility estimate into a **VaR number** (how much money is at risk)
-4. Checks whether the prediction was actually correct — across **20 different assets**
-5. Protects the system from **data-feed attacks** (hackers feeding fake calm data to hide a real crash)
-
----
-
-## What problem does this solve?
-
-### Problem 1 — Classic VaR models are too simple
-
-Old methods (like the ones banks used before 2008) assume markets move in predictable patterns. They missed the 2008 financial crisis because they were not designed to learn from complex patterns in data.
-
-**Our solution:** An LSTM (a type of AI that remembers patterns over time) learns what "calm" and "stormy" markets look like, and adjusts the risk estimate accordingly.
-
-### Problem 2 — Even good AI models have a calibration gap
-
-An AI trained to predict average volatility does not automatically get the *extreme tails* right. The 1% worst days are what VaR is about — and those are exactly the hardest to predict.
-
-**Our solution:** We use a technique from McNeil & Frey (2000) — after training, we measure how wrong the model is on a *separate* validation set and correct the threshold automatically. This is called **calibration**.
-
-### Problem 3 — Nobody thinks about data security in finance AI
-
-What if someone hacks your data feed and replaces real volatile prices with fake calm prices? Your AI would think everything is fine while the market is actually crashing.
-
-**Our solution:** A simple but effective **security gate** checks every incoming data point for suspicious behaviour before it reaches the model.
+**DeepVaR Sentinel provides an end-to-end pipeline that:**
+1. Ingests historical market prices (equities, indices, commodities, and crypto).
+2. Runs incoming feeds through an **input validation gate** to protect against corrupted or spoofed prices.
+3. Uses an **LSTM neural network** to forecast tomorrow's conditional volatility ($\hat{\sigma}_{t+1}$).
+4. Converts forecasted volatility into dynamic **Value-at-Risk thresholds** using both parametric formulas and volatility-filtered tail calibration.
+5. Employs a **fail-safe volatility floor** so risk thresholds never artificially drop during market data-integrity incidents.
+6. Evaluates forecasting quality against classical industry baselines using standard statistical tests.
 
 ---
 
-## Key Results (Test Period: 2024 onwards)
+## ❓ What problem does this solve?
 
-The main test is called **Kupiec POF** — it checks whether the VaR prediction was actually correct the right number of times. For a 99% VaR, you expect exactly 1% of days to be worse than predicted (called "breaches"). Too many breaches = model is too optimistic. Too few = model is too conservative.
+### 1. Traditional models react too slowly to regime shifts
+Standard classical methods (such as rolling historical volatility) often struggle during sudden transitions between quiet and turbulent market states. An LSTM neural network is designed to capture sequential temporal dependencies across historical lookback windows.
 
-| Model | Assets that PASS | Out of | Pass Rate |
-|-------|-----------------|--------|-----------|
-| **LSTM (Calibrated)**  | **14** | 20 | **70%** |
-| Historical Simulation | 14 | 20 | 70% |
-| EWMA (RiskMetrics) | 13 | 20 | 65% |
-| Rolling 21-day Std | 10 | 20 | 50% |
-| LSTM (Raw — no calibration) | 2 | 20 | 10% |
+### 2. The MSE-to-Tail Gap
+Standard machine learning models are trained with Mean Squared Error (MSE) to predict average volatility. However, risk management focuses strictly on the extreme 1% worst-case tails. To bridge this gap, the pipeline integrates volatility-filtered historical simulation (McNeil & Frey, 2000), calibrating empirical tail quantiles directly on an out-of-sample validation set.
 
-**The key finding:** Raw LSTM only passes 2/20 without calibration. After applying McNeil & Frey calibration, it jumps to 14/20 — matching the best classical method without retraining the model.
-
-**Cross-check with VIX (the official market fear index):** Our LSTM's volatility predictions correlate with the CBOE VIX at **r = +0.765** (Pearson), confirming the model genuinely tracks real-world market fear.
+### 3. Data Integrity & Feed Attacks
+Financial automated systems often assume price feeds are trustworthy. If an upstream data feed is manipulated—such as through sudden price spikes or artificial volatility suppression—a naive model might report false calm right before a market downturn. DeepVaR Sentinel includes input validation rules and an automatic fail-safe hold mechanism to mitigate this risk.
 
 ---
 
-## How it works — Step by step
-
-Think of it like a weather forecasting pipeline, but for financial risk.
+## ⚙️ System Architecture
 
 ```
-STEP 1 — Collect data
-   "Get the last few years of daily prices for the asset"
-   Source: Yahoo Finance (free, automatic download)
-
-        ↓
-
-STEP 2 — Security gate (the digital bouncer)
-   "Check if today's price looks suspicious before letting it in"
-   Rule 1: If price moved more than 40% in one day → probably a data error, fix it
-   Rule 2: If market suddenly became suspiciously calm → possible attack, raise alert
-
-        ↓
-
-STEP 3 — Feature engineering
-   "Turn raw prices into signals the AI can learn from"
-   - Daily log return   : How much did the price move today? (in %)
-   - 21-day volatility  : How wild has the market been this month?
-   - High-Low range     : How big was today's price swing?
-
-        ↓
-
-STEP 4 — Sliding window
-   "Package the last 60 days of signals into one input block for the AI"
-   Shape: (60 days) × (3 features) = one block
-
-        ↓
-
-STEP 5 — LSTM model
-   "The AI reads the 60-day block and predicts tomorrow's volatility"
-   Architecture: 2-layer LSTM (64 units → 32 units → 1 output)
-   Training: Looks at 2015–2021 data. Stops early if it starts overfitting.
-
-        ↓
-
-STEP 6 — Calibration (McNeil & Frey 2000)
-   "Correct the model's tail estimate using real observed errors"
-   Uses 2022–2023 (validation set) to find the true 1% worst-case multiplier
-   This one step takes the pass rate from 10% → 70%
-
-        ↓
-
-STEP 7 — VaR number
-   VaR = Portfolio Value × (1 - e^(μ - cal_q × σ̂))
-   Example: "With $1,000,000 invested, your max 1-day 99% loss is $23,400"
-
-        ↓
-
-STEP 8 — Backtest
-   "Check if the prediction was correct on 2024 data the model never saw"
-   Kupiec POF test: were there exactly 1% breach days?
+Market Data Feed
+(OHLCV Time Series)
+        │
+        ▼
+┌─────────────────────────────────┐
+│   Input Validation Gate         │  • Checks for abnormal price moves (Hard Limit)
+│   (Data Integrity Defense)      │  • Detects artificial calmness (Collapse Check)
+└───────────────┬─────────────────┘
+                │ clean / repaired
+                ▼
+┌─────────────────────────────────┐
+│   Feature Engineering           │  • Continuously compounded log returns
+│   (Rolling Window Builder)      │  • 21-day historical volatility
+│                                 │  • Normalized intraday High-Low range
+└───────────────┬─────────────────┘
+                ▼
+┌─────────────────────────────────┐
+│   LSTM Forecaster               │  • 2-layer LSTM (64 → 32 units)
+│   (PyTorch Neural Network)      │  • Predicts 1-day ahead volatility proxy |R_{t+1}|
+└───────────────┬─────────────────┘
+                ▼
+┌─────────────────────────────────┐
+│   Fail-Safe Volatility Floor    │  • Anchors forecast to trusted historical level
+│   (Safety Mechanism)            │    during active data alerts
+└───────────────┬─────────────────┘
+                ▼
+┌─────────────────────────────────┐
+│   VaR Estimation & Calibration  │  • Parametric formula (Normal / Student's t)
+│   (Risk Engine)                 │  • Volatility-filtered quantile calibration
+└───────────────┬─────────────────┘
+                ▼
+┌─────────────────────────────────┐
+│   Regulatory Backtesting        │  • Kupiec POF Likelihood Ratio Test
+│   & Interactive Dashboard       │  • Christoffersen Independence Test
+└─────────────────────────────────┘
 ```
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
-### What you need first
-- Python 3.11 or newer — [download here](https://www.python.org/downloads/)
-- `uv` package manager — [install here](https://github.com/astral-sh/uv) (much faster than pip)
-- Internet connection (to download price data from Yahoo Finance)
+### Prerequisites
+- Python 3.11 or newer
+- [`uv`](https://github.com/astral-sh/uv) (fast Python package installer) or `pip`
 
 ### Setup (Windows)
 
 ```powershell
-# 1. Download the project
+# 1. Clone repository
 git clone <your-repo-url> deepvar-sentinel
 cd deepvar-sentinel
 
-# 2. Create a virtual environment (a clean, isolated Python space)
+# 2. Create and activate a clean virtual environment
 uv venv .venv
 .venv\Scripts\Activate.ps1
 
-# 3. Install all required packages
+# 3. Install dependencies
 uv pip install -r requirements.txt
 uv pip install -e .
 
-# 4. Run the tests first — makes sure everything is working (no internet needed)
+# 4. Verify installation via the test suite (uses synthetic data, no internet needed)
 pytest -q
-# Expected output: 32 passed in ~9s
+# Expected: 32 passed
 ```
 
-### Setup (Mac / Linux)
+### Setup (Linux / macOS)
+
 ```bash
 git clone <your-repo-url> deepvar-sentinel && cd deepvar-sentinel
 uv venv .venv && source .venv/bin/activate
@@ -161,306 +118,261 @@ uv pip install -r requirements.txt && uv pip install -e .
 pytest -q
 ```
 
-### Run the full pipeline
+### Running the Pipeline
 
 ```powershell
-# Step 1 — Download all 20 assets from Yahoo Finance (~2 minutes, needs internet)
+# 1. Download price datasets from public endpoints
 python scripts\download_all.py
 
-# Step 2 — Train all 20 LSTM models (~30-45 minutes on a laptop CPU)
+# 2. Train the LSTM models
 python scripts\train_all.py
 
-# Step 3 — Run backtests: 5 models × 20 assets → saves results to reports/
+# 3. Execute backtesting across all benchmark models
 python scripts\backtest_all.py
 
-# Step 4 — Cross-check LSTM vs VIX (needs FRED API, free)
+# 4. Run external cross-checks (CBOE VIX)
 python scripts\fred_crosscheck.py
 
-# Step 5 — Test security gate on NAB benchmark data
-python scripts\nab_gate_eval.py
-
-# Step 6 — Launch the interactive web dashboard
+# 5. Launch the interactive Streamlit dashboard
 streamlit run app\streamlit_app.py
-# Opens automatically at: http://localhost:8501
-```
-
->  **No GPU needed.** The model is small and trains in a few minutes on any laptop CPU.
-
----
-
-## The 5 Models — What they are and how they compare
-
-We test 5 different approaches on every asset and compare them fairly.
-
-### 1. LSTM (Raw)
-- **What it is:** A neural network that reads 60 days of market data and predicts tomorrow's volatility
-- **How it predicts VaR:** Uses a statistical formula with a t-distribution (a bell curve with fat tails)
-- **Problem:** The formula assumes tails look a certain way — they don't in real markets
-- **Result:** Only 2/20 assets pass. Too many breach days (model under-estimates risk)
-
-### 2. LSTM (Calibrated)  Our main contribution
-- **What it is:** Same LSTM, but the VaR threshold is corrected after training
-- **How the correction works:**
-  1. Run the model on 2022–2023 (validation data it hasn't seen)
-  2. Compute the actual worst-case return for each day: `residual = actual_return / predicted_sigma`
-  3. Find the true 1% quantile of those residuals
-  4. Use that real number instead of the formula's assumed number
-- **Result:** 14/20 pass. Huge improvement with zero extra training.
-
-### 3. EWMA (RiskMetrics)
-- **What it is:** An old 1990s formula from J.P. Morgan. Recent days count more than old ones (exponential weighting)
-- **Formula:** `σ²_today = 0.94 × σ²_yesterday + 0.06 × return²_today`
-- **Strength:** Very fast, no training needed, works well on quiet markets
-- **Weakness:** Slow to react to sudden volatility spikes
-- **Result:** 13/20 pass
-
-### 4. Rolling 21-day Standard Deviation
-- **What it is:** The simplest possible model. Just look at how much prices moved in the last 21 trading days
-- **Strength:** Completely transparent, zero assumptions
-- **Weakness:** Treats all 21 days equally (a crash 20 days ago counts the same as yesterday)
-- **Result:** 10/20 pass
-
-### 5. Historical Simulation
-- **What it is:** Look at the last 250 trading days. Take the worst 1% of actual returns. Use that as your VaR.
-- **Strength:** No model assumptions at all — uses real observed data
-- **Weakness:** Cannot predict a crisis larger than anything in the last 250 days
-- **Result:** 14/20 pass (best classical method)
-
----
-
-## The Security Module
-
-This is what makes this project different from a standard VaR project.
-
-### Why does security matter?
-
-Imagine you manage risk for a hedge fund. Your VaR system reads live price data from a data vendor every morning. What if a hacker replaced that live feed with fake prices? Your model would think the market is calm, and you'd hold less money as a safety buffer — right before a crash.
-
-This is not just theoretical. Supply-chain attacks on financial data are a real and growing concern.
-
-### The 3 attack types we simulate
-
-| Attack | What it does | Real-world equivalent |
-|--------|-------------|----------------------|
-| **Flash crash** | Drops price by 20–40% for 1–5 days | A data vendor's system gets corrupted |
-| **Fat finger** | Spikes price up 50% for a day | A rogue trader enters a wrong order in the feed |
-| **Volatility suppression** | Silently scales all returns by 20% | A sophisticated attacker replays historical calm data |
-
-The last one (volatility suppression) is the most dangerous — it's the stealthiest. Prices look plausible. Only the volatility is wrong.
-
-### The 2-rule Security Gate
-
-We use just 2 simple, fully explainable rules (no ML needed here — explainability matters for regulators):
-
-**Rule 1 — Hard Limit:**
-> "If the price moved more than 40% in one day, that's physically impossible for most assets. Reject it and use yesterday's price instead."
-> → Catches flash crash and fat finger attacks
-
-**Rule 2 — Collapse Detection:**
-> "If the market has been suspiciously calm for 5 days in a row (much calmer than its own historical average), something is wrong."
-> → Catches volatility suppression attacks
-
-### The Fail-Safe Floor
-
-When the gate fires an alert, the system activates a fail-safe:
-> "While we suspect the data is compromised, never let our volatility estimate drop. Keep it at the last trustworthy level for at least 21 trading days."
-
-This means even a perfect attacker who fools the model cannot reduce the VaR estimate during an attack window.
-
----
-
-##  The 20 Assets
-
-We test on 6 different types of financial assets to prove the system is not just tuned for one market.
-
-| # | Ticker | Asset | Type |
-|---|--------|-------|------|
-| 1 | BTC-USD | Bitcoin | Crypto |
-| 2 | ETH-USD | Ethereum | Crypto |
-| 3 | XRP-USD | Ripple | Crypto |
-| 4 | ^GSPC | S&P 500 | US Stock Index |
-| 5 | ^DJI | Dow Jones | US Stock Index |
-| 6 | ^IXIC | NASDAQ | US Stock Index |
-| 7 | AAPL | Apple | US Tech Stock |
-| 8 | MSFT | Microsoft | US Tech Stock |
-| 9 | TSLA | Tesla | US Tech Stock |
-| 10 | ^NSEI | Nifty 50 | India Index |
-| 11 | HDFCBANK.NS | HDFC Bank | Indian Bank |
-| 12 | ICICIBANK.NS | ICICI Bank | Indian Bank |
-| 13 | INFY.NS | Infosys | Indian IT Stock |
-| 14 | RELIANCE.NS | Reliance | Indian Conglomerate |
-| 15 | TCS.NS | Tata Consultancy | Indian IT Stock |
-| 16 | ^HSI | Hang Seng | Hong Kong Index |
-| 17 | ^N225 | Nikkei 225 | Japan Index |
-| 18 | ^FTSE | FTSE 100 | UK Index |
-| 19 | GC=F | Gold Futures | Commodity |
-| 20 | CL=F | Crude Oil (WTI) | Commodity |
-
-### How we split the data — strictly no peeking
-
-This is critical. If the model has ever seen the test data, results are meaningless.
-
-```
-Training     : Jan 2015 → Dec 2021   ← Model learns from this
-Validation   : Jan 2022 → Dec 2023   ← Used for early stopping + VaR calibration
-Test         : Jan 2024 → today      ← Never touched until final evaluation
 ```
 
 ---
 
-##  Test Suite
+## 🤖 Models & Benchmarks Compared
 
-We have **32 automated tests** that run on completely synthetic (fake) data — no internet connection needed.
+The platform evaluates 5 distinct risk forecasting methodologies:
 
-```powershell
-pytest -q         # run all tests (~9 seconds)
-pytest -v         # verbose — shows each test name
-pytest tests/test_var.py -v   # run just one test file
-```
-
-| Test file | What it checks |
-|-----------|---------------|
-| `test_attacks.py` | The 3 attack functions work correctly and only touch the right days |
-| `test_defenses.py` | The gate catches spikes and suppression; the fail-safe floor never lowers sigma |
-| `test_features.py` | Log returns are computed correctly; target is 1-day ahead, not leaking future data |
-| `test_var.py` | VaR maths is correct; calibration gives a negative quantile; more sigma = more VaR |
-| `test_kupiec.py` | Perfect calibration passes; 10% breaches at 99% VaR fails |
-| `test_pipeline.py` | LSTM trains, saves, and loads back correctly with the right output shape |
-| `test_splits.py` | Train/val/test splits are chronological with zero overlap |
-| `test_resample.py` | Weekend and holiday gaps are handled correctly |
+| Method | Category | Description |
+|---|---|---|
+| **LSTM (Calibrated)** | Deep Learning + EVT | 2-layer LSTM volatility forecaster with McNeil & Frey (2000) validation quantile calibration. |
+| **LSTM (Raw)** | Deep Learning | Direct parametric VaR derived from LSTM volatility output assuming theoretical Student's $t$ tails. |
+| **EWMA (RiskMetrics)** | Econometric Baseline | Exponentially Weighted Moving Average ($\lambda = 0.94$) weighting recent squared returns. |
+| **Rolling 21-Day Std** | Empirical Baseline | Unweighted sample standard deviation over a trailing 21-trading-day window. |
+| **Historical Simulation** | Non-Parametric | Direct empirical quantile derived from trailing 250 trading days of observed returns. |
 
 ---
 
-## Project Structure
+## 📐 Mathematical Formulation
+
+### 1. Returns & Feature Construction
+
+Given daily closing prices $P_t$, high prices $H_t$, and low prices $L_t$:
+
+* **Continuously Compounded Log Return:**
+  $$R_t = \ln\left(\frac{P_t}{P_{t-1}}\right)$$
+
+* **Rolling 21-Day Historical Volatility:**
+  $$\sigma_{21, t} = \sqrt{\frac{1}{20} \sum_{i=0}^{20} \left(R_{t-i} - \bar{R}_t\right)^2}, \quad \text{where } \bar{R}_t = \frac{1}{21}\sum_{i=0}^{20} R_{t-i}$$
+
+* **Intraday Normalized High-Low Range:**
+  $$\text{Range}_t = \frac{H_t - L_t}{P_t}$$
+
+* **Target Formulation ($H=1$ Day Ahead):**
+  $$y_t = \left|R_{t+1}\right|$$
+  Under conditionally zero-mean returns, the conditional expectation $\mathbb{E}[|R_{t+1}| \mid \mathcal{F}_t]$ serves as a proxy for conditional standard deviation $\sigma_{t+1}$.
+
+---
+
+### 2. Parametric Value-at-Risk (VaR) & Price Floor
+
+For portfolio value $V$, confidence level $\alpha \in (0, 1)$ (e.g., $\alpha = 0.99$), zero drift assumption $\mu = 0$, and forecasted volatility $\hat{\sigma}_{t+1}$:
+
+* **Parametric VaR Threshold (Return Space):**
+  $$\text{VaR}_{\alpha, t+1}^{\text{ret}} = \mu - z_\alpha \hat{\sigma}_{t+1}$$
+
+* **Parametric VaR Monetary Loss:**
+  $$\text{VaR}_{\alpha, t+1}^{\$} = V \cdot \left(1 - \exp\left(\mu - z_\alpha \hat{\sigma}_{t+1}\right)\right)$$
+
+* **Dynamic VaR Price Floor:**
+  $$\text{Floor}_{t+1} = P_t \cdot \exp\left(\mu - z_\alpha \hat{\sigma}_{t+1}\right)$$
+
+Where quantile multiplier $z_\alpha$ is defined as:
+* **Normal Distribution ($\mathcal{N}(0, 1)$):** $z_\alpha = \Phi^{-1}(\alpha)$
+* **Student's $t$-Distribution with $\nu$ Degrees of Freedom ($t_\nu$ rescaled to unit variance):**
+  $$z_\alpha = t_\nu^{-1}(\alpha) \cdot \sqrt{\frac{\nu - 2}{\nu}}$$
+
+---
+
+### 3. Volatility-Filtered Tail Calibration (McNeil & Frey, 2000)
+
+To adjust for empirical tail fatness:
+
+1. **Standardized Residuals on Out-of-Sample Validation Set ($\mathcal{D}_{\text{val}}$):**
+   $$e_t = \frac{R_t}{\hat{\sigma}_t}, \quad \forall t \in \mathcal{D}_{\text{val}}$$
+
+2. **Empirical Left-Tail Quantile ($1 - \alpha$ level):**
+   $$q_{1-\alpha} = \text{Quantile}_{1-\alpha}\left(\{e_t\}_{t \in \mathcal{D}_{\text{val}}}\right)$$
+
+3. **Calibrated Threshold:**
+   $$\text{Threshold}_{t+1}^{\text{calibrated}} = \hat{\sigma}_{t+1} \cdot q_{1-\alpha}$$
+
+A **VaR breach** on trading day $t+1$ occurs if:
+$$I_{t+1} = \mathbb{I}\left(R_{t+1} < \text{Threshold}_{t+1}^{\text{calibrated}}\right) = 1$$
+
+---
+
+### 4. Classical Benchmarks
+
+* **EWMA (RiskMetrics, $\lambda = 0.94$):**
+  $$\sigma_t^2 = \lambda \sigma_{t-1}^2 + (1 - \lambda) R_{t-1}^2$$
+
+* **Rolling Standard Deviation ($W=21$):**
+  $$\sigma_t = \sqrt{\frac{1}{W-1} \sum_{i=1}^W \left(R_{t-i} - \bar{R}\right)^2}$$
+
+* **Historical Simulation:**
+  $$\text{VaR}_{\alpha, t} = - \text{Quantile}_{1-\alpha}\left(\{R_{t-i}\}_{i=1}^{250}\right)$$
+
+---
+
+### 5. Statistical Backtesting
+
+#### A. Kupiec Proportion of Failures (POF) Test
+Tests whether empirical breach probability matches nominal coverage $p_0 = 1 - \alpha$:
+$$H_0: p = p_0 \quad \text{vs.} \quad H_1: p \neq p_0$$
+
+Given $N$ test days, observed breaches $x = \sum_{t=1}^N I_t$, and sample rate $\hat{p} = \frac{x}{N}$:
+$$\text{LR}_{\text{POF}} = -2 \ln \left[ \frac{(1 - p_0)^{N - x} \, p_0^x}{(1 - \hat{p})^{N - x} \, \hat{p}^x} \right] \sim \chi^2(1)$$
+
+If $p\text{-value} = 1 - F_{\chi^2(1)}(\text{LR}_{\text{POF}}) < 0.05$, the model is rejected as mis-calibrated.
+
+#### B. Christoffersen Independence Test
+Evaluates whether breaches occur independently without clustering using a two-state Markov chain transition matrix $\Pi = \begin{pmatrix} \pi_{00} & \pi_{01} \\ \pi_{10} & \pi_{11} \end{pmatrix}$:
+$$\text{LR}_{\text{ind}} = -2 \ln \left[ \frac{\pi_0^{n_{00} + n_{10}} (1 - \pi_0)^{n_{01} + n_{11}}}{\hat{\pi}_{01}^{n_{01}} (1 - \hat{\pi}_{01})^{n_{00}} \hat{\pi}_{11}^{n_{11}} (1 - \hat{\pi}_{11})^{n_{10}}} \right] \sim \chi^2(1)$$
+
+---
+
+### 6. Security Defenses & Fail-Safe Mechanism
+
+* **Rule 1 — Hard Limit Check (Large Price Dislocations):**
+  $$\text{Flag}_{\text{hard\_limit}, t} = \mathbb{I}\left(|R_t| > \gamma_{\text{max}}\right)$$
+  When triggered, the system replaces $P_t \leftarrow P_{t-1}$ (zero-order hold repair).
+
+* **Rule 2 — Volatility Collapse Check (Stealth Calm-Injection):**
+  $$\text{RMS}_{k, t} = \sqrt{\frac{1}{k}\sum_{i=0}^{k-1} R_{t-i}^2}$$
+  $$\text{Flag}_{\text{collapse}, t} = \mathbb{I}\left(\text{RMS}_{k, t} < \beta \cdot \text{Median}\left(\{\sigma_{21, \tau}\}_{\tau = t - k - 252}^{t - k}\right)\right)$$
+
+* **Fail-Safe Volatility Floor:**
+  If an alert is active on day $t$ or within the preceding $H_{\text{hold}}$ days:
+  $$\hat{\sigma}_t^{\text{secure}} = \max\left(\hat{\sigma}_t, \;\; \max_{i \in [\text{lag}, \, \text{lag} + W_{\text{ref}}]} \hat{\sigma}_{t-i}\right)$$
+
+---
+
+## 🔐 Threat Modeling & Attack Simulation
+
+The framework evaluates system robustness under three synthetic data manipulation scenarios:
+
+| Attack | Operation | Purpose |
+|---|---|---|
+| **Flash Crash** | Abruptly drops prices by 20–40% over 1–5 trading days. | Tests zero-order hold repair and breach signal handling. |
+| **Fat Finger** | Injects an isolated +50% price spike on day $t$. | Tests single-day spike detection. |
+| **Volatility Suppression** | Multiplies returns by a factor $\alpha \in (0, 1)$ during volatile periods. | Simulates an adversary masking turbulence to artificially lower capital buffers. |
+
+---
+
+## 📁 Repository Layout
 
 ```
 deepvar-sentinel/
 │
-├── README.md                    ← You are here
-├── pyproject.toml               ← Project settings and test config
-├── requirements.txt             ← All Python packages needed
-├── Makefile                     ← Shortcuts: make train, make test, make app
+├── README.md                    ← Project documentation
+├── pyproject.toml               ← Build setup and testing configurations
+├── requirements.txt             ← Runtime package dependencies
+├── Makefile                     ← CLI build/test shortcuts
 │
-├── configs/                     ← One settings file per asset (20 total)
-│   ├── default.yaml             ← Bitcoin (BTC-USD)
-│   ├── sp500.yaml               ← S&P 500
-│   └── ...18 more...
+├── configs/                     ← Asset-specific YAML configuration files
+│   ├── default.yaml             ← BTC-USD configuration
+│   ├── sp500.yaml               ← S&P 500 configuration
+│   └── ...                      ← Additional configurations
 │
-├── src/deepvar/                 ← The main code library
-│   ├── config.py                ← Loads the YAML settings files
-│   ├── pipeline.py              ← Connects everything end-to-end
-│   ├── data/
-│   │   ├── download.py          ← Downloads prices from Yahoo Finance
-│   │   ├── features.py          ← Computes log returns, volatility, range
-│   │   ├── windows.py           ← Packages data into 60-day sliding blocks
-│   │   └── synthetic.py        ← Generates fake data for tests (no internet needed)
-│   ├── models/
-│   │   ├── lstm.py              ← The LSTM neural network architecture
-│   │   └── train.py             ← Training loop with early stopping
-│   ├── risk/
-│   │   ├── var.py               ← VaR formulas + calibration (McNeil & Frey)
-│   │   ├── backtest.py          ← Kupiec POF and Christoffersen independence test
-│   │   └── baselines.py        ← EWMA, rolling std, historical simulation
-│   └── security/
-│       ├── attacks.py           ← Flash crash, fat finger, vol suppression
-│       ├── defenses.py          ← 2-rule input gate + fail-safe floor
-│       └── evaluate.py          ← Finds the best window to test attacks on
+├── src/deepvar/                 ← Core Python package
+│   ├── config.py                ← Configuration loader
+│   ├── pipeline.py              ← High-level orchestration pipeline
+│   ├── data/                    ← Data ingestion, feature engineering, windowing
+│   ├── models/                  ← LSTM PyTorch model & training routine
+│   ├── risk/                    ← VaR estimation, calibration, and backtesting
+│   └── security/                ← Attack simulations, validation gate, fail-safe
 │
-├── scripts/                     ← Run these from the command line
-│   ├── download_all.py          ← Downloads all 20 assets
-│   ├── train_all.py             ← Trains all 20 models
-│   ├── backtest_all.py          ← Tests all 5 models × 20 assets
-│   ├── fred_crosscheck.py       ← Compares LSTM σ with the VIX index
-│   ├── nab_gate_eval.py         ← Tests gate on NAB benchmark datasets
-│   └── attack_study.py          ← Demo: shows what happens under each attack
+├── scripts/                     ← Executable CLI scripts
+│   ├── download_all.py          ← Multi-asset data downloader
+│   ├── train_all.py             ← Model training automation
+│   ├── backtest_all.py          ← Full backtest suite
+│   ├── fred_crosscheck.py       ← CBOE VIX cross-check utility
+│   └── attack_study.py          ← Adversarial defense demonstration
 │
 ├── app/
-│   └── streamlit_app.py         ← Interactive dashboard in your browser
+│   └── streamlit_app.py         ← Interactive dashboard
 │
-├── tests/                       ← Automated tests (32 total, all pass)
+├── tests/                       ← Pytest unit and regression tests (32 tests)
 │
-├── artifacts/                   ← Trained models saved here (not on GitHub)
-├── reports/                     ← Backtest results saved here (not on GitHub)
-├── data/raw/                    ← Downloaded prices saved here (not on GitHub)
-│
-└── docs/                        ← Plain-English explanations of every concept
-    ├── 01-project-explained.md  ← Start here if you're new to the project
-    ├── 05-finance-concepts.md   ← What is VaR, Kupiec, EWMA? Explained simply.
-    ├── 06-cybersecurity-concepts.md ← What is a data-feed attack?
-    └── 09-thesis-and-viva-guide.md  ← Questions your examiner might ask + answers
+├── artifacts/                   ← Model weights and scalers (local / git-ignored)
+├── reports/                     ← Generated summary CSV reports (local / git-ignored)
+└── data/                        ← Cached raw market data (local / git-ignored)
 ```
 
 ---
 
-## Configuration
+## ⚙️ Configuration Schema
 
-Every setting is in a simple text file (YAML format). Here is what the main settings do:
+Parameters are customized per asset in `configs/*.yaml`:
 
 ```yaml
 data:
-  ticker: "BTC-USD"         # Which asset to download from Yahoo Finance
-  start: "2015-01-01"       # How far back to go
-  train_end: "2021-12-31"   # Training data ends here
-  val_end:   "2023-12-31"   # Validation data ends here (test starts Jan 2024)
+  ticker: "BTC-USD"
+  start: "2015-01-01"
+  train_end: "2021-12-31"      # Strict chronological split
+  val_end:   "2023-12-31"
+  vol_window: 21
+  target_horizon: 1
 
 model:
-  window: 60                # How many past days the LSTM looks at
-  hidden1: 64               # Size of the first LSTM layer
-  hidden2: 32               # Size of the second LSTM layer
-  dropout: 0.3              # Randomly turn off 30% of neurons during training
-                            #   to prevent the model from memorising the data
-  lr: 0.001                 # How fast the model learns (learning rate)
-  epochs: 60                # Maximum number of training rounds
-  patience: 8               # Stop early if no improvement for 8 rounds
+  window: 60                   # Lookback window length (days)
+  hidden1: 64
+  hidden2: 32
+  dropout: 0.3
+  lr: 0.001
+  epochs: 60
+  patience: 8
 
 risk:
-  confidence: 0.99          # We want 99% VaR (1-in-100 worst day)
-  distribution: "t"         # Use a fat-tailed distribution (better than normal)
-  t_df: 5.0                 # Degrees of freedom for the t-distribution
-  ewma_lambda: 0.94         # RiskMetrics decay factor
-  hist_window: 250          # Historical simulation: use last 250 trading days
+  confidence: 0.99             # 99% 1-day VaR
+  distribution: "t"            # "t" or "normal"
+  t_df: 5.0
+  ewma_lambda: 0.94
+  hist_window: 250
 
 security:
-  max_abs_return: 0.40      # Flag any day where price moved more than 40%
-  collapse_window: 5        # Check if last 5 days are suspiciously calm
-  collapse_ratio: 0.35      # "Suspiciously calm" = below 35% of normal vol
-  hold_days: 21             # Keep the fail-safe floor active for 21 days
+  max_abs_return: 0.40
+  collapse_window: 5
+  collapse_ratio: 0.35
+  hold_days: 21
 ```
 
 ---
 
-## Honest Limitations
+## 🧪 Testing
 
-I want to be transparent about where the system does not work perfectly.
+The test suite runs 32 automated unit tests across data transformations, feature engineering, backtesting logic, and security rules:
 
-**Where it struggles:**
+```powershell
+pytest -q
+```
 
-| Issue | Why |
-|-------|-----|
-| **Gold (GC=F) fails all models** | Gold surged from \$2,000 → \$2,700 in 2024. Nothing in 2015–2023 training data predicted this. No model can predict something it has never seen. |
-| **NASDAQ, S&P 500 fail calibration** | The 2022–2023 Fed rate hikes fundamentally changed how tech stocks move. The validation data the model calibrates on is itself a regime-change period. |
-| **Raw LSTM under-estimates tail risk** | The LSTM is trained to minimise average error. The worst 1% of days are outliers — the model naturally pays less attention to them during training. Calibration fixes this, but it cannot help if the new regime is entirely unlike history. |
-| **Security gate has false alarms** | The gate is intentionally designed to prefer false alarms over missed attacks. In a real trading system, this means you hold slightly more capital on some normal days. This is by design — it is the safer choice. |
-| **NAB F1 scores are low** | The NAB benchmark contains machine sensor anomalies, server metrics, and traffic data. Our gate is specifically designed for financial price data. Low cross-domain scores are expected and not a weakness of the gate on its intended use case. |
+All tests operate using synthetic offline data without requiring network connections or GPUs.
 
 ---
 
-## Background Reading (for examiners and reviewers)
+## 📚 References
 
-The two key academic papers behind this project:
-
-**McNeil & Frey (2000)** — the calibration method we use:
-> McNeil, A. J., & Frey, R. (2000). *Estimation of tail-related risk measures for heteroscedastic financial time series: an extreme value approach.* Journal of Empirical Finance, 7(3–4), 271–300.
-
-**Kupiec (1995)** — the statistical test we use to evaluate VaR:
-> Kupiec, P. H. (1995). *Techniques for verifying the accuracy of risk measurement models.* Journal of Derivatives, 3(2), 73–84.
+* McNeil, A. J., & Frey, R. (2000). *Estimation of tail-related risk measures for heteroscedastic financial time series: an extreme value approach.* Journal of Empirical Finance, 7(3–4), 271–300.
+* Kupiec, P. H. (1995). *Techniques for verifying the accuracy of risk measurement models.* Journal of Derivatives, 3(2), 73–84.
+* Christoffersen, P. F. (1998). *Evaluating interval forecasts.* International Economic Review, 39(4), 841–862.
+* J.P. Morgan / Reuters (1996). *RiskMetrics — Technical Document.* 4th Edition.
 
 ---
 
-## License
+## 📄 License
 
-MIT License — free to use, modify, and share with attribution.
+This project is licensed under the MIT License — see `LICENSE` for details.
+*Educational and research framework. Not financial advice.*
 
----
-
-*Built as an M.Tech research project. All results are from real market data. Not financial advice.*
