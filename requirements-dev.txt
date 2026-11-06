@@ -1,0 +1,6 @@
+-r requirements.txt
+pytest>=8.0
+ruff>=0.4
+# Optional research extras (not needed to run the project):
+# adversarial-robustness-toolbox>=1.17
+# arch>=7.0

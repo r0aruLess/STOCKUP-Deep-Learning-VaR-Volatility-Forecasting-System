@@ -1,0 +1,43 @@
+# ---------------------------------------------------------------
+# DeepVaR Sentinel - default configuration
+# Every "magic number" in the project lives here, so you can change
+# an experiment without touching code.
+# ---------------------------------------------------------------
+data:
+  ticker: "^GSPC"          # S&P 500 index
+  source: "yfinance"         # yfinance | csv | synthetic
+  csv_path: null             # used when source == csv (Kaggle files)
+  start: "2015-01-01"
+  end: null                  # null = today
+  vol_window: 21             # rolling historical volatility window (trading days)
+  target_horizon: 1          # LSTM predicts next-day realised volatility |R_{t+1}| (1-day ahead, no overlap)
+  # Sequential split (NEVER random for time series):
+  train_end: "2021-12-31"    # Train: 2015–2021
+  val_end: "2023-12-31"      # Val: 2022–2023 | Test: 2024 onward
+
+model:
+  window: 60                 # look-back days fed to the LSTM
+  hidden1: 64
+  hidden2: 32
+  dropout: 0.35             # higher dropout vs default — S&P 500 has fewer training samples
+  lr: 0.0005               # lower lr — prevents overshooting on calmer index returns
+  batch_size: 64
+  epochs: 60
+  patience: 10              # give the lower lr more time to converge
+  seed: 42
+
+risk:
+  confidence: 0.99           # 0.95 or 0.99
+  portfolio_value: 1000000
+  mu: 0.0                    # assumed mean daily log-return
+  distribution: "t"     # normal | t   (t = fat-tail aware)
+  t_df: 5
+  hist_window: 250           # for the historical-simulation baseline
+  ewma_lambda: 0.94          # RiskMetrics decay factor
+
+security:
+  max_abs_return: 0.15       # indices rarely move >15% in a day
+  collapse_window: 5         # days used to detect a suspicious volatility collapse
+  collapse_ratio: 0.35       # RMS(last 5d) < 35% of the 1-year median vol => alert
+  hold_days: 21              # how long the fail-safe stays on after a flag
+  ref_window: 60             # window used for the last-known-good volatility

@@ -1,0 +1,40 @@
+# ---------------------------------------------------------------
+# DeepVaR Sentinel – Nifty 50 (^NSEI) configuration
+# ---------------------------------------------------------------
+data:
+  ticker: "^NSEI"            # Nifty 50 index
+  source: "yfinance"
+  csv_path: null
+  start: "2015-01-01"
+  end: null
+  vol_window: 21
+  target_horizon: 1          # 1-day ahead realised volatility
+  train_end: "2021-12-31"    # Train: 2015–2021
+  val_end: "2023-12-31"      # Val: 2022–2023 | Test: 2024 onward
+
+model:
+  window: 60
+  hidden1: 64
+  hidden2: 32
+  dropout: 0.2
+  lr: 0.001
+  batch_size: 64
+  epochs: 60
+  patience: 8
+  seed: 42
+
+risk:
+  confidence: 0.99
+  portfolio_value: 1000000
+  mu: 0.0
+  distribution: "t"          # fat-tail quantile suits emerging market indices
+  t_df: 5
+  hist_window: 250
+  ewma_lambda: 0.94
+
+security:
+  max_abs_return: 0.15       # indices rarely move >15% in a day
+  collapse_window: 5
+  collapse_ratio: 0.35
+  hold_days: 21
+  ref_window: 60

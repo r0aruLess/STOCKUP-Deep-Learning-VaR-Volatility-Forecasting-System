@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deepvar-sentinel"
+version = "0.1.0"
+description = "LSTM Value-at-Risk & volatility forecasting with adversarial-robustness testing"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+  "numpy>=1.26", "pandas>=2.1", "scipy>=1.11", "scikit-learn>=1.3",
+  "torch>=2.2", "yfinance>=0.2.40", "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+app = ["streamlit>=1.35", "matplotlib>=3.8"]
+dev = ["pytest>=8.0", "ruff>=0.4"]
+extras = ["adversarial-robustness-toolbox>=1.17", "arch>=7.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "scripts", "app"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501", "E402", "E702", "E731"]   # long lines / sys.path hacks / one-line stmts are fine here
